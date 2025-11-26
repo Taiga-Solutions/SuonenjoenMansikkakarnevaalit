@@ -80,7 +80,7 @@
 
 <div id="game-wrapper">
     <div id="ui">
-        Pisteet: <span id="score">0</span> | Mansikat: <span id="strawberries">0</span> | Ammukset: <span id="ammo">10</span>
+        Pisteet: <span id="score">0</span> | Mansikat: <span id="strawberries">0</span> | Ammuksia: <span id="ammo">10</span>
     </div>
     <div id="start-screen">
         <h1>SUONENJOEN<br>MANSIKKAKARNEVAALIT<br>DELUXE</h1>
@@ -193,8 +193,8 @@ let stepTimer = 0;
 window.addEventListener('keydown', e => {
     if(e.code==='ArrowLeft'||e.code==='KeyA') KEYS.LEFT = true;
     if(e.code==='ArrowRight'||e.code==='KeyD') KEYS.RIGHT = true;
-    if((e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW') && !KEYS.UP) { KEYS.UP = true; player.jump(); }
-    if((e.code==='KeyX'||e.code==='KeyZ'||e.code==='ControlLeft'||e.code==='ControlRight') && !KEYS.SHOOT) { 
+    if((e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW'||e.code==='KeyZ') && !KEYS.UP) { KEYS.UP = true; player.jump(); }
+    if((e.code==='KeyX'||e.code==='ControlLeft'||e.code==='ControlRight') && !KEYS.SHOOT) { 
         KEYS.SHOOT = true; 
         player.shoot(); 
     }
@@ -202,8 +202,8 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => {
     if(e.code==='ArrowLeft'||e.code==='KeyA') KEYS.LEFT = false;
     if(e.code==='ArrowRight'||e.code==='KeyD') KEYS.RIGHT = false;
-    if(e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW') KEYS.UP = false;
-    if(e.code==='KeyX'||e.code==='KeyZ'||e.code==='ControlLeft'||e.code==='ControlRight') KEYS.SHOOT = false;
+    if(e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW'||e.code==='KeyZ') KEYS.UP = false;
+    if(e.code==='KeyX'||e.code==='ControlLeft'||e.code==='ControlRight') KEYS.SHOOT = false;
 });
 
 let gameState = 'START', cameraX = 0, score = 0, strawberries = 0, ammo = 10;
@@ -472,7 +472,7 @@ class Projectile extends Entity {
     update() {
         this.x += this.vx;
         // Poista jos menee liian kauas
-        if(Math.abs(this.x - player.x) > 1000) this.markedForDeletion = true;
+        if(this.x < player.x - 1000 || this.x > player.x + 1000) this.markedForDeletion = true;
     }
     draw(ctx, camX) {
         const x = this.x - camX, y = this.y;
