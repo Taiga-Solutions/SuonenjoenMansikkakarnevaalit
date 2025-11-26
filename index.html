@@ -403,7 +403,7 @@ class Enemy extends Entity {
 }
 
 class Collectible extends Entity {
-    constructor(x, y) { super(x, y, 24, 28); this.bobOffset = Math.random()*Math.PI; }
+    constructor(x, y) { super(x, y, 24, 28); this.bobOffset = Math.random()*Math.PI; this.drawY = y; }
     update() { this.bobOffset += 0.1; this.drawY = this.y + Math.sin(this.bobOffset) * 3; }
     draw(ctx, camX) {
         const x = this.x - camX + this.w/2, y = this.drawY + this.h/2;
@@ -501,7 +501,8 @@ class Projectile extends Entity {
 class AmmoBox extends Entity {
     constructor(x, y) { 
         super(x, y, 24, 24); 
-        this.bobOffset = Math.random()*Math.PI; 
+        this.bobOffset = Math.random()*Math.PI;
+        this.drawY = y;
     }
     update() { 
         this.bobOffset += 0.08; 
