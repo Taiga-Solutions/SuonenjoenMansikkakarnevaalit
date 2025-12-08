@@ -2,805 +2,469 @@
 <html lang="fi">
 <head>
     <meta charset="UTF-8">
-    <title>Suonenjoki Super Strawberry Bros - Deluxe Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suonenjoki 3D - Tarkka Fysiikka</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-        body {
-            margin: 0;
-            background: #1a1a24;
-            color: white;
-            font-family: 'Press Start 2P', cursive;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #game-wrapper {
-            position: relative;
-            box-shadow: 0 0 50px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.1);
-            border-radius: 8px;
-            overflow: hidden;
-            border: 4px solid #333;
-        }
-
-        canvas {
-            display: block;
-            background: #87CEEB;
-        }
-
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            text-shadow: 3px 3px 0 #000;
-            font-size: 14px;
-            z-index: 10;
-            pointer-events: none;
-            background: rgba(0,0,0,0.4);
-            padding: 10px;
-            border-radius: 4px;
-        }
-
-        #start-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-            text-align: center;
-            backdrop-filter: blur(5px);
-        }
-
-        h1 { color: #ff4d4d; text-shadow: 4px 4px 0 #000; line-height: 1.5; margin-bottom: 20px; font-size: 24px;}
-        p { margin-bottom: 20px; line-height: 1.8; font-size: 12px; color: #ddd;}
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; }
         
-        button {
-            background: #ff4d4d;
-            border: 4px solid #fff;
-            box-shadow: 4px 4px 0 #000;
-            color: white;
-            font-family: 'Press Start 2P';
-            padding: 15px 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.1s;
+        #ui-layer {
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            color: white; text-shadow: 2px 2px 0 #000;
         }
-        button:hover { background: #ff2222; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
-        button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+        h1 { margin: 0; font-size: 20px; color: #ffeb3b; }
+        .stat { font-size: 24px; font-weight: bold; }
+        
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9); color: white; padding: 30px; border-radius: 10px;
+            text-align: center; z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        #game-over {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #fff; padding: 40px; border-radius: 20px; text-align: center;
+            border: 5px solid #d32f2f; display: none; z-index: 200; min-width: 300px;
+        }
+        #end-reason { font-size: 22px; font-weight: bold; margin-bottom: 10px; display:block; }
+        button {
+            background: #d32f2f; color: white; border: none; padding: 12px 30px;
+            font-size: 18px; cursor: pointer; border-radius: 5px; margin-top: 15px;
+        }
+        button:hover { background: #b71c1c; }
+
+        #osm-credit {
+            position: absolute; bottom: 5px; right: 5px; font-size: 10px;
+            background: rgba(255,255,255,0.7); padding: 2px 5px; pointer-events: auto; z-index: 5;
+        }
     </style>
 </head>
 <body>
 
-<div id="game-wrapper">
-    <div id="ui">
-        Pisteet: <span id="score">0</span> | Mansikat: <span id="strawberries">0</span> | Ammuksia: <span id="ammo">10</span>
+    <div id="ui-layer">
+        <h1>🍓 Mansikkakarnevaali 2026</h1>
+        <div class="stat">Pisteet: <span id="score">0</span> / 40</div>
+        <div style="font-size: 14px; margin-top:5px;">Varo räkättirastaita ja seiniä!</div>
     </div>
-    <div id="start-screen">
-        <h1>SUONENJOEN<br>MANSIKKAKARNEVAALIT<br>DELUXE</h1>
-        <p>Rastaat uhkaavat satoa!<br>Hypi rotkojen yli ja pelasta karnevaalit.</p>
-        <p>Liiku: Nuolet / WASD<br>Hyppää: Välilyönti / Z / Nuoli Ylös<br>Ammu: X / Ctrl</p>
-        <button id="start-btn">ALOITA PELI</button>
+
+    <div id="loading">
+        <h2>Ladataan Suonenjokea...</h2>
+        <div id="loading-text">Rakennetaan tarkkaa 3D-kaupunkia...</div>
     </div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-</div>
 
-<script>
-// --- GRAPHICS HELPERS ---
-function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-    ctx.fillStyle = fillStyle;
-    ctx.fill();
-}
+    <div id="game-over">
+        <span id="end-reason">SYY</span>
+        <p>Keräsit <span id="final-score">0</span> mansikkaa.</p>
+        <button onclick="location.reload()">Yritä Uudestaan</button>
+    </div>
 
-// --- AUDIO ENGINE ---
-const AudioEngine = {
-    ctx: null, musicInterval: null, musicIndex: 0, bassInterval: null, bassIndex: 0,
-    init() { window.AudioContext = window.AudioContext || window.webkitAudioContext; this.ctx = new AudioContext(); },
-    playTone(freq, type, duration, vol = 0.1, slide = 0) {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        if (slide !== 0) osc.frequency.exponentialRampToValueAtTime(freq + slide, this.ctx.currentTime + duration);
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        osc.connect(gain); gain.connect(this.ctx.destination);
-        osc.start(); osc.stop(this.ctx.currentTime + duration);
-    },
-    playJump() { this.playTone(350, 'square', 0.2, 0.15, 400); },
-    playCoin() { this.playTone(1396, 'sine', 0.08, 0.2); setTimeout(() => this.playTone(2093, 'sine', 0.15, 0.2), 80); },
-    playKill() { this.playTone(200, 'sawtooth', 0.15, 0.2, -150); },
-    playDie() { this.playTone(500, 'sawtooth', 0.5, 0.3, -400); setTimeout(() => this.playTone(300, 'sawtooth', 0.8, 0.3, -200), 400); },
-    playShoot() { this.playTone(880, 'square', 0.08, 0.15, -200); setTimeout(() => this.playTone(1100, 'square', 0.05, 0.1), 40); },
-    playHit() { this.playTone(150, 'sawtooth', 0.15, 0.2, -80); },
-    playStep() { this.playTone(100, 'sine', 0.05, 0.03); },
-    playWind() { if(Math.random() > 0.95) this.playTone(80 + Math.random()*40, 'sine', 0.5, 0.02); },
-    playVictoryFanfare() {
-        const fanfare = [523, 523, 523, 659, 784, 784, 784, 1047];
-        fanfare.forEach((note, i) => {
-            setTimeout(() => { 
-                this.playTone(note, 'square', 0.3, 0.15); 
-                this.playTone(note*2, 'sine', 0.3, 0.08);
-            }, i * 200);
-        });
-    },
-    startMusic() {
-        if (!this.ctx) this.init(); if (this.musicInterval) return;
-        // Pidempi ja vaihtelevampi melodia (64 nuottia)
-        const melody = [
-            330,330,392,523,523,392,330,0, 294,294,349,440,392,349,330,0,
-            330,330,392,523,587,659,523,0, 523,494,440,392,330,294,262,0,
-            392,392,440,523,523,440,392,0, 349,349,392,494,440,392,349,0,
-            330,392,523,587,659,698,784,0, 659,587,523,440,392,349,330,0
-        ];
-        // Bassokuvio (yksinkertainen)
-        const bass = [
-            165,165,0,165, 147,147,0,147, 165,165,0,165, 131,131,0,131,
-            165,165,0,165, 147,147,0,147, 165,165,0,165, 131,131,0,131
-        ];
+    <div id="osm-credit">© OpenStreetMap contributors</div>
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- ASETUKSET ---
+        const ORIGIN_LAT = 62.6255;
+        const ORIGIN_LON = 27.1245;
+        const ZOOM = 16; 
+        const TILE_RANGE = 2; 
+
+        let scene, camera, renderer, car;
+        let strawberries = [];
+        let birds = []; 
+        let buildingMeshes = []; // Tallennetaan meshit raycastingia varten
         
-        this.musicIndex = 0;
-        this.bassIndex = 0;
+        let keys = { w:0, a:0, s:0, d:0 };
+        let speed = 0, angle = 0;
+        let worldCenter = { x: 0, y: 0 };
+        let gameActive = false;
+        let score = 0;
         
-        // Melodia
-        this.musicInterval = setInterval(() => {
-            if (melody[this.musicIndex] > 0) { 
-                this.playTone(melody[this.musicIndex]/2,'triangle',0.12,0.08); 
-                this.playTone(melody[this.musicIndex],'square',0.18,0.04); 
-            }
-            this.musicIndex = (this.musicIndex + 1) % melody.length;
-        }, 60000 / 180);
-        
-        // Basso
-        this.bassInterval = setInterval(() => {
-            if (bass[this.bassIndex] > 0) { 
-                this.playTone(bass[this.bassIndex],'sine',0.2,0.06); 
-            }
-            this.bassIndex = (this.bassIndex + 1) % bass.length;
-        }, 60000 / 180);
-    },
-    stopMusic() { 
-        clearInterval(this.musicInterval); 
-        clearInterval(this.bassInterval); 
-        this.musicInterval = null; 
-        this.bassInterval = null; 
-    }
-};
+        // Raycaster törmäyksiä varten
+        const raycaster = new THREE.Raycaster();
 
-// --- GAME ENGINE ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const KEYS = { LEFT: false, RIGHT: false, UP: false, SHOOT: false };
-
-// Input
-let stepTimer = 0;
-window.addEventListener('keydown', e => {
-    if(e.code==='ArrowLeft'||e.code==='KeyA') KEYS.LEFT = true;
-    if(e.code==='ArrowRight'||e.code==='KeyD') KEYS.RIGHT = true;
-    if((e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW'||e.code==='KeyZ') && !KEYS.UP) { KEYS.UP = true; player.jump(); }
-    if((e.code==='KeyX'||e.code==='ControlLeft'||e.code==='ControlRight') && !KEYS.SHOOT) { 
-        KEYS.SHOOT = true; 
-        player.shoot(); 
-    }
-});
-window.addEventListener('keyup', e => {
-    if(e.code==='ArrowLeft'||e.code==='KeyA') KEYS.LEFT = false;
-    if(e.code==='ArrowRight'||e.code==='KeyD') KEYS.RIGHT = false;
-    if(e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW'||e.code==='KeyZ') KEYS.UP = false;
-    if(e.code==='KeyX'||e.code==='ControlLeft'||e.code==='ControlRight') KEYS.SHOOT = false;
-});
-
-let gameState = 'START', cameraX = 0, score = 0, strawberries = 0, ammo = 10;
-// SÄÄDETTY NOPEUTTA: Hieman hitaampi painovoima ja kitka
-const GRAVITY = 0.55, FRICTION = 0.85;
-
-class Entity {
-    constructor(x, y, w, h) { this.x=x; this.y=y; this.w=w; this.h=h; this.vx=0; this.vy=0; this.grounded=false; this.markedForDeletion=false; }
-    update() { this.vy += GRAVITY; this.x += this.vx; this.y += this.vy; }
-}
-
-class Player extends Entity {
-    constructor() {
-        super(100, 300, 32, 48);
-        // SÄÄDETTY NOPEUTTA: Hitaampi liike ja kevyempi hyppy
-        this.speed = 4.5; 
-        this.jumpForce = -13.5;
-        this.facingRight = true;
-        this.walkCycle = 0;
-        this.isJumping = false;
-        this.shootCooldown = 0;
-    }
-    update() {
-        const wasGrounded = this.grounded;
-        if (KEYS.LEFT) { this.vx = -this.speed; this.facingRight = false; if(this.grounded) this.walkCycle += 0.2; }
-        else if (KEYS.RIGHT) { this.vx = this.speed; this.facingRight = true; if(this.grounded) this.walkCycle += 0.2; }
-        else { this.vx *= FRICTION; this.walkCycle = 0; }
-        super.update();
-        this.isJumping = !this.grounded;
-        if(this.shootCooldown > 0) this.shootCooldown--;
-        
-        // Askelsoundit
-        if(this.grounded && Math.abs(this.vx) > 2) {
-            stepTimer++;
-            if(stepTimer > 15) {
-                AudioEngine.playStep();
-                stepTimer = 0;
-            }
+        // Projektiofunktiot
+        function project(lat, lon) {
+            const R = 6378137;
+            const x = R * (lon * Math.PI / 180);
+            const y = R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI / 180) / 2));
+            return { x: x, y: y };
         }
-    }
-    jump() { if (this.grounded) { this.vy = this.jumpForce; this.grounded = false; this.isJumping = true; AudioEngine.playJump(); } }
-    shoot() {
-        if(this.shootCooldown === 0 && ammo > 0) {
-            ammo--;
-            this.shootCooldown = 15; // Cooldown 15 framea
-            let dir = this.facingRight ? 1 : -1;
-            projectiles.push(new Projectile(this.x + this.w/2, this.y + this.h/2 - 8, dir));
-            AudioEngine.playShoot();
+        function tileToLatLon(x, y, z) {
+            const n = Math.pow(2, z);
+            const lon_deg = x / n * 360.0 - 180.0;
+            const lat_rad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
+            const lat_deg = lat_rad * 180.0 / Math.PI;
+            return { lat: lat_deg, lon: lon_deg };
         }
-    }
-    
-    // UUSI TYYLIKKÄÄMPI PIIRTO-METODI
-    draw(ctx, camX) {
-        const x = this.x - camX, y = this.y;
-        const bob = this.grounded ? Math.sin(this.walkCycle) * 2 : 0; // Kävelyanimaatio (pumppaus)
-        const dir = this.facingRight ? 1 : -1;
-        
-        ctx.save();
-        
-        // Varjo (pienempi hyppyyssä)
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        let shadowSize = this.isJumping ? 10 : 14 - Math.abs(bob);
-        ctx.beginPath(); ctx.ellipse(x + 16, y + 48, shadowSize, 4, 0, 0, Math.PI*2); ctx.fill();
+        function lon2tile(lon,zoom) { return (Math.floor((lon+180)/360*Math.pow(2,zoom))); }
+        function lat2tile(lat,zoom) { return (Math.floor((1-Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180))/Math.PI)/2 *Math.pow(2,zoom))); }
 
-        // Jalat (tummempi sininen) - Parannettu kävelyanimaatio
-        ctx.fillStyle = '#003366';
-        if(this.isJumping) {
-            // Hyppyasento - jalat kouristuvat
-            ctx.fillRect(x + 10, y + 36, 5, 8);
-            ctx.fillRect(x + 17, y + 38, 5, 6);
-        } else if(Math.abs(this.vx) > 0.5) { 
-            // Kävelyasento - selkeämpi jalkojen liike
-            let legSwing = Math.sin(this.walkCycle);
-            ctx.fillRect(x + 8 + (legSwing*3), y + 38, 6, 10);
-            ctx.fillRect(x + 18 - (legSwing*3), y + 38, 6, 10);
-        } else {
-            // Seisoma-asento
-            ctx.fillRect(x + 8, y + 38, 6, 10);
-            ctx.fillRect(x + 18, y + 38, 6, 10);
+        // --- ALUSTUS ---
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 300);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 30, 40);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Valot
+            const amb = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(amb);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
+            sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
+            sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
+
+            worldCenter = project(ORIGIN_LAT, ORIGIN_LON);
+
+            createAccurateMap();
+            fetchBuildings(); 
+            createCar();
+
+            window.addEventListener('keydown', e => updateKey(e.key, 1));
+            window.addEventListener('keyup', e => updateKey(e.key, 0));
+            window.addEventListener('resize', onResize);
+
+            animate();
         }
 
-        // Vartalo/Haalarit (Denim Gradient)
-        let bodyGrad = ctx.createLinearGradient(x, y+20, x, y+40);
-        bodyGrad.addColorStop(0, '#0066cc'); bodyGrad.addColorStop(1, '#004488');
-        ctx.fillStyle = bodyGrad;
-        // Pääosa
-        ctx.beginPath(); 
-        ctx.moveTo(x+4, y+22+bob); ctx.lineTo(x+28, y+22+bob);
-        ctx.lineTo(x+28, y+40+bob); ctx.lineTo(x+4, y+40+bob); ctx.fill();
-
-        // Olkaimet
-        ctx.fillStyle = '#5D2906'; // Ruskea
-        ctx.fillRect(x + 6, y + 18 + bob, 4, 6);
-        ctx.fillRect(x + 22, y + 18 + bob, 4, 6);
-
-        // Napit (Keltaiset)
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath(); ctx.arc(x+8, y+25+bob, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x+24, y+25+bob, 2, 0, Math.PI*2); ctx.fill();
-        
-        // Pää (Beige)
-        ctx.fillStyle = '#ffccaa';
-        ctx.beginPath(); ctx.arc(x+16, y+12+bob, 11, 0, Math.PI*2); ctx.fill();
-
-        // Kasvot
-        ctx.fillStyle = 'white'; // Silmävalkuaiset
-        ctx.beginPath(); ctx.ellipse(x + 16 + (4*dir), y + 10 + bob, 3, 2, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'black'; // Pupillit
-        ctx.beginPath(); ctx.arc(x + 16 + (5*dir), y + 10 + bob, 1.5, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#cc9977'; // Nenä
-        ctx.beginPath(); ctx.arc(x + 16 + (1*dir), y + 13 + bob, 1.5, 0, Math.PI*2); ctx.fill();
-
-        // Lippis (MANSIKKA-TYYLI)
-        let hatGrad = ctx.createRadialGradient(x+16, y+bob, 2, x+16, y+5+bob, 14);
-        hatGrad.addColorStop(0, '#ff5555'); hatGrad.addColorStop(1, '#cc0000');
-        ctx.fillStyle = hatGrad;
-        // Hatun muoto
-        ctx.beginPath();
-        ctx.moveTo(x+2, y+5+bob); 
-        ctx.quadraticCurveTo(x+16, y-10+bob, x+30, y+5+bob); // Yläosa
-        ctx.lineTo(x+30, y+7+bob); 
-        ctx.quadraticCurveTo(x+16, y+10+bob, x+2, y+7+bob); // Alaosa
-        ctx.fill();
-
-        // Mansikan siemenet lippikseen
-        ctx.fillStyle = '#FFD700';
-        [ [-5,0], [0,-3], [5,0], [-3,4], [3,4] ].forEach(p => {
-             ctx.beginPath(); ctx.arc(x+16+p[0], y+2+p[1]+bob, 1, 0, Math.PI*2); ctx.fill();
-        });
-
-        // Lippiksen kanta (Vihreä)
-        ctx.fillStyle = '#228B22';
-        ctx.beginPath();
-        ctx.moveTo(x+16, y-8+bob);
-        ctx.lineTo(x+12, y-5+bob); ctx.lineTo(x+16, y-2+bob); ctx.lineTo(x+20, y-5+bob); ctx.fill();
-
-        // Lippa
-        ctx.fillStyle = '#aa0000';
-        if(this.facingRight) { ctx.fillRect(x + 18, y + 4 + bob, 8, 3); } 
-        else { ctx.fillRect(x + 6, y + 4 + bob, 8, 3); }
-        
-        ctx.restore();
-    }
-}
-
-class Enemy extends Entity {
-    constructor(x, y) { super(x, y, 32, 32); this.startX=x; this.walkRange=120; this.speed=1.5; this.dir=1; this.flap=0; }
-    update() {
-        this.vy += GRAVITY; this.y += this.vy; this.x += this.speed * this.dir;
-        if (this.x > this.startX + this.walkRange) this.dir = -1;
-        if (this.x < this.startX - this.walkRange) this.dir = 1;
-        this.flap += 0.25; // Hieman hitaampi räpytys
-        platforms.forEach(p => {
-             if (this.x < p.x + p.w && this.x + this.w > p.x && this.y + this.h >= p.y && this.y + this.h <= p.y + p.h + 5 && this.vy >= 0) {
-                this.y = p.y - this.h; this.vy = 0;
-            }
-        });
-    }
-    draw(ctx, camX) {
-        const x = this.x - camX, y = this.y;
-        
-        // Varjo
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.beginPath(); ctx.ellipse(x + 16, y + 32, 12, 4, 0, 0, Math.PI*2); ctx.fill();
-        
-        // Vartalo
-        let grad = ctx.createRadialGradient(x+16, y+16, 5, x+16, y+16, 16);
-        grad.addColorStop(0, '#666'); grad.addColorStop(1, '#333');
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(x + 16, y + 18, 14, 0, Math.PI * 2); ctx.fill();
-        
-        // Siivet - realistisempi räpytys
-        let wingAngle = Math.sin(this.flap) * 0.6; // Siipi-kulma
-        let wingHeight = 8 + Math.abs(Math.sin(this.flap)) * 8; // Siipi korkeus vaihtelee
-        ctx.fillStyle = '#222';
-        ctx.save();
-        // Vasen siipi
-        ctx.translate(x + 8, y + 18);
-        ctx.rotate(wingAngle);
-        ctx.beginPath(); ctx.ellipse(0, 0, 12, wingHeight, 0, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-        // Oikea siipi
-        ctx.save();
-        ctx.translate(x + 24, y + 18);
-        ctx.rotate(-wingAngle);
-        ctx.beginPath(); ctx.ellipse(0, 0, 12, wingHeight, 0, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-        
-        // Silmät
-        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(this.dir > 0 ? x+22 : x+10, y+12, 5, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(this.dir > 0 ? x+24 : x+8, y+12, 2, 0, Math.PI*2); ctx.fill();
-        
-        // Nokka
-        ctx.fillStyle = 'orange'; ctx.beginPath();
-        ctx.moveTo(this.dir>0?x+26:x+6, y+16); ctx.lineTo(this.dir>0?x+36:x-4, y+19); ctx.lineTo(this.dir>0?x+26:x+6, y+22); ctx.fill();
-    }
-}
-
-class Collectible extends Entity {
-    constructor(x, y) { super(x, y, 24, 28); this.bobOffset = Math.random()*Math.PI; this.drawY = y; }
-    update() { this.bobOffset += 0.1; this.drawY = this.y + Math.sin(this.bobOffset) * 3; }
-    draw(ctx, camX) {
-        const x = this.x - camX + this.w/2, y = this.drawY + this.h/2;
-        
-        // Kimallus/Aura-efekti
-        let sparkle = Math.sin(this.bobOffset * 2) * 0.3 + 0.7;
-        ctx.save();
-        ctx.globalAlpha = sparkle * 0.3;
-        ctx.fillStyle = '#ffff99';
-        ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-        
-        let berryGrad = ctx.createRadialGradient(x,y+5, 2, x, y, 15);
-        berryGrad.addColorStop(0, '#ff5555'); berryGrad.addColorStop(1, '#cc0000');
-        ctx.fillStyle = berryGrad;
-        ctx.beginPath(); ctx.moveTo(x-12, y-6); ctx.bezierCurveTo(x-16, y-6, x-16, y+12, x, y+16); ctx.bezierCurveTo(x+16, y+12, x+16, y-6, x+12, y-6); ctx.fill();
-        ctx.fillStyle = '#00aa00'; ctx.beginPath(); ctx.moveTo(x-10, y-6); ctx.lineTo(x, y-12); ctx.lineTo(x+10, y-6); ctx.lineTo(x, y-3); ctx.fill();
-        ctx.fillStyle = '#ffaaaa'; [ [-5,2], [5,4], [-3,8], [0,11], [4,9] ].forEach(p => ctx.fillRect(x+p[0], y+p[1], 2, 2));
-    }
-}
-
-class Particle {
-    constructor(x, y, color, type='normal') { 
-        this.x=x; this.y=y; 
-        this.vx=(Math.random()-0.5)*8; 
-        this.vy=(Math.random()-0.5)*8; 
-        this.life=1.0; 
-        this.color=color; 
-        this.type=type;
-        this.size = type === 'sparkle' ? 3 : 6;
-    }
-    update() { 
-        this.x+=this.vx; 
-        this.y+=this.vy; 
-        this.vy+=0.4; 
-        this.life-=0.04; 
-    }
-    draw(ctx, camX) { 
-        ctx.globalAlpha=this.life; 
-        if(this.type === 'sparkle') {
-            // Tähti-muoto kimallukselle
-            ctx.fillStyle=this.color; 
-            ctx.save();
-            ctx.translate(this.x-camX, this.y);
-            ctx.rotate(this.life * Math.PI);
-            for(let i=0; i<4; i++) {
-                ctx.rotate(Math.PI/2);
-                ctx.fillRect(-1, -this.size, 2, this.size*2);
-            }
-            ctx.restore();
-        } else {
-            ctx.fillStyle=this.color; 
-            ctx.fillRect(this.x-camX, this.y, this.size, this.size); 
+        function updateKey(k, v) {
+            const key = k.toLowerCase();
+            if(key==='w'||key==='arrowup') keys.w=v;
+            if(key==='s'||key==='arrowdown') keys.s=v;
+            if(key==='a'||key==='arrowleft') keys.a=v;
+            if(key==='d'||key==='arrowright') keys.d=v;
         }
-        ctx.globalAlpha=1.0; 
-    }
-}
 
-class Projectile extends Entity {
-    constructor(x, y, dir) { 
-        super(x, y, 12, 12); 
-        this.vx = dir * 12; 
-        this.dir = dir;
-        this.vy = 0;
-    }
-    update() {
-        this.x += this.vx;
-        // Poista jos menee liian kauas
-        if(this.x < player.x - 1000 || this.x > player.x + 1000) this.markedForDeletion = true;
-    }
-    draw(ctx, camX) {
-        const x = this.x - camX, y = this.y;
-        // Liekki/välähdys
-        ctx.save();
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = '#ff8800';
-        ctx.beginPath(); ctx.arc(x - this.dir*6, y+6, 8, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-        
-        // Mansikka-ammus
-        let berryGrad = ctx.createRadialGradient(x+6, y+8, 2, x+6, y+6, 8);
-        berryGrad.addColorStop(0, '#ff5555'); berryGrad.addColorStop(1, '#cc0000');
-        ctx.fillStyle = berryGrad;
-        ctx.beginPath(); 
-        ctx.arc(x+6, y+6, 6, 0, Math.PI*2); 
-        ctx.fill();
-        // Siemenet
-        ctx.fillStyle = '#ffaaaa';
-        [[-2,0], [2,0], [0,-2], [0,2]].forEach(p => {
-            ctx.fillRect(x+6+p[0], y+6+p[1], 1, 1);
-        });
-    }
-}
+        // --- KARTTA & RAKENNUKSET ---
+        function createAccurateMap() {
+            const centerTileX = lon2tile(ORIGIN_LON, ZOOM);
+            const centerTileY = lat2tile(ORIGIN_LAT, ZOOM);
+            const range = TILE_RANGE;
+            
+            const minTX = centerTileX - range, maxTX = centerTileX + range;
+            const minTY = centerTileY - range, maxTY = centerTileY + range;
+            
+            const tileW = (maxTX - minTX + 1);
+            const tileH = (maxTY - minTY + 1);
+            const px = 256;
 
-class AmmoBox extends Entity {
-    constructor(x, y) { 
-        super(x, y, 24, 24); 
-        this.bobOffset = Math.random()*Math.PI;
-        this.drawY = y;
-    }
-    update() { 
-        this.bobOffset += 0.08; 
-        this.drawY = this.y + Math.sin(this.bobOffset) * 2; 
-    }
-    draw(ctx, camX) {
-        const x = this.x - camX, y = this.drawY;
-        // Kori/laatikko
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(x, y+8, 24, 16);
-        ctx.strokeStyle = '#5D2906';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y+8, 24, 16);
-        // Mansikoita korissa
-        for(let i=0; i<3; i++) {
-            ctx.fillStyle = '#ff0000';
-            ctx.beginPath(); ctx.arc(x+6+i*6, y+12, 4, 0, Math.PI*2); ctx.fill();
-        }
-        // "+5" teksti
-        ctx.fillStyle = '#ffff00';
-        ctx.font = 'bold 10px Arial';
-        ctx.fillText('+5', x+4, y+6);
-    }
-}
+            const canvas = document.createElement('canvas');
+            canvas.width = tileW * px; canvas.height = tileH * px;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ddd'; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-let player, enemies=[], platforms=[], collectibles=[], particles=[], clouds=[], mountains=[], hills=[], trees=[], projectiles=[], ammoBoxes=[];
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.anisotropy = 4;
 
-function initLevel() {
-    player = new Player();
-    score=0; strawberries=0; cameraX=0; ammo=10;
-    enemies=[]; platforms=[]; collectibles=[]; particles=[]; projectiles=[]; ammoBoxes=[];
-    
-    // Parallaksi-taustat
-    mountains = [];
-    for (let i=0; i<15; i++) mountains.push({x: i*400+Math.random()*100, height: 150+Math.random()*100});
-    hills = [];
-    for (let i=0; i<25; i++) hills.push({x: i*300+Math.random()*80, height: 100+Math.random()*80});
-    trees = [];
-    for (let i=0; i<50; i++) trees.push({x: Math.random()*6000, y: 400+Math.random()*80, scale: 0.6+Math.random()*0.6});
-    
-    let curX = 0;
-    for(let i=0; i<60; i++) {
-        if(i > 5 && Math.random() > 0.8 && i < 55) { curX += 150 + Math.random()*100; continue; }
-        let w = 100 + Math.random()*100;
-        platforms.push({x: curX, y: 500 + Math.random()*50, w: w, h: 100, type: 'ground'});
-        if(Math.random() > 0.6 && i < 55) {
-            platforms.push({x: curX + 50, y: 350 - Math.random()*100, w: 80+Math.random()*80, h: 30, type: 'air'});
-        }
-        curX += w;
-    }
-    platforms.push({x: curX + 200, y: 450, w: 100, h: 150, type: 'goal_base'});
+            let loaded = 0;
 
-    platforms.forEach(p => {
-        if(p.type === 'ground' && p.x > 600 && Math.random() > 0.7) enemies.push(new Enemy(p.x+50, p.y-50));
-        if(p.type === 'air' && Math.random() > 0.3) collectibles.push(new Collectible(p.x+p.w/2-15, p.y-40));
-        // Ammuslaatikot
-        if(p.type === 'ground' && p.x > 400 && Math.random() > 0.85) ammoBoxes.push(new AmmoBox(p.x+p.w/2-12, p.y-30));
-    });
-
-    for (let i=0; i<25; i++) clouds.push({x: Math.random()*6000, y: Math.random()*250, scale: 0.5+Math.random()*0.8});
-}
-
-function checkCollisions() {
-    let wasGrounded = player.grounded;
-    player.grounded = false;
-    platforms.forEach(p => {
-        if (player.x < p.x + p.w && player.x + player.w > p.x &&
-            player.y < p.y + p.h && player.y + player.h > p.y) {
-            if (player.vy >= 0 && player.y + player.h - player.vy <= p.y + 5) {
-                player.grounded = true; player.vy = 0; player.y = p.y - player.h;
-                // Pölypartikkelit laskeutumisessa
-                if(!wasGrounded && player.vy > 5) {
-                    for(let i=0; i<5; i++) particles.push(new Particle(player.x+player.w/2, player.y+player.h, '#aa8855', 'normal'));
+            for(let x=0; x<tileW; x++) {
+                for(let y=0; y<tileH; y++) {
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    img.src = `https://tile.openstreetmap.org/${ZOOM}/${minTX+x}/${minTY+y}.png`;
+                    img.onload = () => {
+                        ctx.drawImage(img, x*px, y*px);
+                        tex.needsUpdate = true;
+                        loaded++;
+                    };
                 }
-            } else if (player.vy < 0 && player.y - player.vy >= p.y + p.h) {
-                player.vy = 0; player.y = p.y + p.h;
-            } else {
-                if (player.vx > 0) player.x = p.x - player.w;
-                else if (player.vx < 0) player.x = p.x + p.w;
-                player.vx = 0;
+            }
+
+            const tlLL = tileToLatLon(minTX, minTY, ZOOM);
+            const brLL = tileToLatLon(maxTX+1, maxTY+1, ZOOM);
+            const tl = project(tlLL.lat, tlLL.lon);
+            const br = project(brLL.lat, brLL.lon);
+            
+            const w = Math.abs(br.x - tl.x);
+            const h = Math.abs(tl.y - br.y);
+            const plane = new THREE.Mesh(
+                new THREE.PlaneGeometry(w, h),
+                new THREE.MeshStandardMaterial({ map: tex, roughness: 1 })
+            );
+            plane.rotation.x = -Math.PI/2;
+            
+            const midX = (tl.x + br.x)/2;
+            const midY = (tl.y + br.y)/2;
+            plane.position.x = midX - worldCenter.x;
+            plane.position.z = -1 * (midY - worldCenter.y);
+            plane.receiveShadow = true;
+            scene.add(plane);
+        }
+
+        async function fetchBuildings() {
+            const bounds = 0.008;
+            const bbox = `${ORIGIN_LAT - bounds},${ORIGIN_LON - bounds},${ORIGIN_LAT + bounds},${ORIGIN_LON + bounds}`;
+            const query = `[out:json][timeout:25];(way["building"](${bbox}); relation["building"](${bbox}););out body;>;out skel qt;`;
+
+            try {
+                const res = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:query });
+                const data = await res.json();
+                buildCity(data);
+                spawnGameObjects();
+                
+                document.getElementById('loading').style.display = 'none';
+                gameActive = true;
+            } catch(e) {
+                document.getElementById('loading-text').innerText = "Virhe karttadatassa. Lataa sivu uudelleen.";
             }
         }
-    });
 
-    enemies.forEach(e => {
-        if (!e.markedForDeletion && player.x < e.x + e.w - 5 && player.x + player.w > e.x + 5 &&
-            player.y < e.y + e.h && player.y + player.h > e.y) {
-            if (player.vy > 0 && player.y + player.h < e.y + e.h * 0.6) {
-                e.markedForDeletion = true; player.vy = -9; score += 100; AudioEngine.playKill();
-                for(let i=0; i<10; i++) particles.push(new Particle(e.x+e.w/2, e.y+e.h/2, '#555'));
-            } else gameOver();
+        function buildCity(data) {
+            const nodes = {};
+            data.elements.forEach(e => { if(e.type==='node') nodes[e.id] = {lat:e.lat, lon:e.lon}; });
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0x8d6e63 });
+
+            data.elements.forEach(el => {
+                if(el.type === 'way' && el.nodes && el.nodes.length > 2) {
+                    const shape = new THREE.Shape();
+                    const pts = [];
+                    for(let i=0; i<el.nodes.length; i++) {
+                        const n = nodes[el.nodes[i]];
+                        if(!n) continue;
+                        const p = project(n.lat, n.lon);
+                        pts.push({ x: p.x - worldCenter.x, z: -1 * (p.y - worldCenter.y) });
+                    }
+                    if(pts.length < 3) return;
+                    
+                    shape.moveTo(pts[0].x, pts[0].z);
+                    for(let i=1; i<pts.length; i++) shape.lineTo(pts[i].x, pts[i].z);
+
+                    let h = 6; 
+                    if(el.tags && el.tags['building:levels']) h = parseInt(el.tags['building:levels']) * 4;
+
+                    const geom = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false });
+                    geom.rotateX(Math.PI / 2);
+                    geom.translate(0, h, 0);
+
+                    const mesh = new THREE.Mesh(geom, [roofMat, wallMat]);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    scene.add(mesh);
+                    
+                    // Lisätään mesh listaan tarkkaa törmäystarkistusta varten
+                    buildingMeshes.push(mesh);
+                }
+            });
         }
-    });
 
-    collectibles.forEach(c => {
-        if (!c.markedForDeletion && player.x<c.x+c.w && player.x+player.w>c.x && player.y<c.y+c.h && player.y+player.h>c.y) {
-            c.markedForDeletion = true; score+=50; strawberries++; AudioEngine.playCoin();
-            // Kimallus mansikan keräämisessä
-            for(let i=0; i<8; i++) particles.push(new Particle(c.x+c.w/2, c.y+c.h/2, '#ffff00', 'sparkle'));
-            for(let i=0; i<6; i++) particles.push(new Particle(c.x+c.w/2, c.y+c.h/2, '#ff2222'));
-        }
-    });
-    
-    // Ammuslaatikot
-    ammoBoxes.forEach(box => {
-        if (!box.markedForDeletion && player.x<box.x+box.w && player.x+player.w>box.x && player.y<box.y+box.h && player.y+player.h>box.y) {
-            box.markedForDeletion = true; ammo += 5; AudioEngine.playCoin();
-            for(let i=0; i<6; i++) particles.push(new Particle(box.x+box.w/2, box.y+box.h/2, '#ffaa00', 'sparkle'));
-        }
-    });
-    
-    // Ammukset osuvat vihollisiin
-    projectiles.forEach(proj => {
-        enemies.forEach(e => {
-            if(!proj.markedForDeletion && !e.markedForDeletion && 
-               proj.x < e.x+e.w && proj.x+proj.w > e.x && proj.y < e.y+e.h && proj.y+proj.h > e.y) {
-                proj.markedForDeletion = true;
-                e.markedForDeletion = true;
-                score += 150;
-                AudioEngine.playHit();
-                // Räjähdyspartikkelit
-                for(let i=0; i<15; i++) particles.push(new Particle(e.x+e.w/2, e.y+e.h/2, '#ff4400'));
-                for(let i=0; i<8; i++) particles.push(new Particle(e.x+e.w/2, e.y+e.h/2, '#ffff00', 'sparkle'));
-            }
-        });
-    });
-    
-    if (player.y > 700) gameOver();
-    let lastP = platforms[platforms.length-1];
-    if (player.x > lastP.x && player.y < lastP.y) gameWin();
-
-    enemies = enemies.filter(e => !e.markedForDeletion);
-    collectibles = collectibles.filter(c => !c.markedForDeletion);
-    ammoBoxes = ammoBoxes.filter(b => !b.markedForDeletion);
-    projectiles = projectiles.filter(p => !p.markedForDeletion);
-    particles = particles.filter(p => p.life > 0);
-}
-
-function gameOver() {
-    gameState = 'GAMEOVER'; AudioEngine.stopMusic(); AudioEngine.playDie();
-    showScreen("PELI OHI", "Rastas vei mansikat tai putosit rotkoon.<br>Pisteet: " + score, "YRITÄ UUDELLEEN");
-}
-function gameWin() {
-    gameState = 'WIN'; AudioEngine.stopMusic(); AudioEngine.playVictoryFanfare();
-    showScreen("KARNEVAALIT PELASTETTU!", "Onneksi olkoon! Suonenjoki kiittää.<br>Keräsit " + strawberries + " mansikkaa.", "PELAA UUDELLEEN");
-}
-function showScreen(h1, p, btn) {
-    document.getElementById('start-screen').style.display = 'flex';
-    document.querySelector('h1').innerHTML = h1; document.querySelector('p').innerHTML = p;
-    document.getElementById('start-btn').innerText = btn;
-}
-
-function update() {
-    if (gameState !== 'PLAYING') return;
-    player.update(); 
-    enemies.forEach(e => e.update()); 
-    collectibles.forEach(c => c.update()); 
-    ammoBoxes.forEach(b => b.update());
-    projectiles.forEach(p => p.update());
-    particles.forEach(p => p.update());
-    checkCollisions();
-    cameraX = Math.max(0, player.x - 350);
-    document.getElementById('score').innerText = score; 
-    document.getElementById('strawberries').innerText = strawberries;
-    document.getElementById('ammo').innerText = ammo;
-    
-    // Tuulen ääni satunnaisesti
-    AudioEngine.playWind();
-}
-
-function draw() {
-    let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    skyGrad.addColorStop(0, '#87CEEB'); skyGrad.addColorStop(1, '#E0F7FA');
-    ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Aurinko
-    let sunGrad = ctx.createRadialGradient(700, 100, 20, 700, 100, 60);
-    sunGrad.addColorStop(0, '#ffff99'); sunGrad.addColorStop(0.5, '#ffdd66'); sunGrad.addColorStop(1, 'rgba(255,221,102,0)');
-    ctx.fillStyle = sunGrad; ctx.beginPath(); ctx.arc(700, 100, 60, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ffff44'; ctx.beginPath(); ctx.arc(700, 100, 35, 0, Math.PI*2); ctx.fill();
-
-    // Pilvet (liikkuvat hitaasti)
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    clouds.forEach(c => {
-        let pX = (c.x - cameraX * 0.4) % (canvas.width + 300) - 150;
-        if (pX > -200 && pX < canvas.width + 200) {
-            ctx.beginPath(); ctx.arc(pX, c.y, 30*c.scale, 0, Math.PI*2); ctx.arc(pX+25*c.scale, c.y-10*c.scale, 35*c.scale, 0, Math.PI*2); ctx.arc(pX+50*c.scale, c.y, 30*c.scale, 0, Math.PI*2); ctx.fill();
-        }
-    });
-
-    // Kaukaiset vuoret (liikkuvat hitaimmin - 0.2x)
-    mountains.forEach(m => {
-        let mX = m.x - cameraX * 0.2;
-        if (mX > -400 && mX < canvas.width + 200) {
-            let mountainGrad = ctx.createLinearGradient(mX, 500-m.height, mX, 500);
-            mountainGrad.addColorStop(0, '#6699cc'); mountainGrad.addColorStop(1, '#8ab8d8');
-            ctx.fillStyle = mountainGrad;
-            ctx.beginPath(); ctx.moveTo(mX, 500); ctx.lineTo(mX+150, 500-m.height); ctx.lineTo(mX+300, 500); ctx.fill();
-            // Lumen huiput
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.beginPath(); ctx.moveTo(mX+150, 500-m.height); ctx.lineTo(mX+120, 500-m.height+30); ctx.lineTo(mX+180, 500-m.height+30); ctx.fill();
-        }
-    });
-
-    // Kukkulat (liikkuvat 0.5x)
-    hills.forEach(h => {
-        let hX = h.x - cameraX * 0.5;
-        if (hX > -300 && hX < canvas.width + 200) {
-            let hillGrad = ctx.createLinearGradient(hX, 500-h.height, hX, 500);
-            hillGrad.addColorStop(0, '#66aa66'); hillGrad.addColorStop(1, '#4d8c4d');
-            ctx.fillStyle = hillGrad;
-            ctx.beginPath(); ctx.moveTo(hX, 500); ctx.quadraticCurveTo(hX+100, 500-h.height, hX+200, 500); ctx.fill();
-        }
-    });
-
-    // Puut ja pensaat taustalla (liikkuvat 0.7x)
-    trees.forEach(t => {
-        let tX = t.x - cameraX * 0.7;
-        if (tX > -100 && tX < canvas.width + 100) {
+        // --- PELIOBJEKTIT ---
+        function createCar() {
+            car = new THREE.Group();
+            
             // Runko
-            ctx.fillStyle = '#5D2906';
-            ctx.fillRect(tX-5*t.scale, t.y, 10*t.scale, 40*t.scale);
-            // Latvus
-            ctx.fillStyle = '#228B22';
-            ctx.beginPath(); ctx.arc(tX, t.y-10*t.scale, 25*t.scale, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(tX-15*t.scale, t.y, 20*t.scale, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(tX+15*t.scale, t.y, 20*t.scale, 0, Math.PI*2); ctx.fill();
+            const chassi = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.7, 3.2), new THREE.MeshStandardMaterial({ color: 0xd32f2f }));
+            chassi.position.y = 0.7; chassi.castShadow=true;
+            car.add(chassi);
+            
+            // Katto
+            const top = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 1.8), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            top.position.set(0, 1.4, -0.3); top.castShadow=true;
+            car.add(top);
+
+            // Renkaat
+            const wGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 12);
+            const wMat = new THREE.MeshStandardMaterial({ color: 0x333 });
+            [[-0.9, 1.1], [0.9, 1.1], [-0.9, -1.1], [0.9, -1.1]].forEach(p => {
+                const w = new THREE.Mesh(wGeo, wMat);
+                w.rotation.z = Math.PI/2; w.position.set(p[0], 0.35, p[1]);
+                car.add(w);
+            });
+
+            scene.add(car);
         }
-    });
 
-    // Etualalla aaltoilevat kukkulat
-    ctx.fillStyle = '#2E8B57'; ctx.beginPath(); ctx.moveTo(0, 600);
-    for(let i=0; i<=canvas.width+100; i+=100) ctx.lineTo(i, 480 - Math.sin((i+cameraX*0.1)*0.008)*80);
-    ctx.lineTo(canvas.width, 600); ctx.fill();
+        function createBird() {
+            const bird = new THREE.Group();
+            
+            const body = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.8, 8), new THREE.MeshLambertMaterial({color: 0x555555}));
+            body.rotation.x = Math.PI / 2;
+            bird.add(body);
 
-    platforms.forEach(p => {
-        if (p.x - cameraX < canvas.width && p.x + p.w - cameraX > 0) {
-            let dX = p.x - cameraX;
-            let dirtGrad = ctx.createLinearGradient(dX, p.y, dX, p.y+p.h);
-            dirtGrad.addColorStop(0, '#8B4513'); dirtGrad.addColorStop(1, '#5D2906');
-            ctx.fillStyle = dirtGrad; ctx.fillRect(dX, p.y, p.w, p.h);
-            ctx.fillStyle = '#4A2000';
-            for(let i=0; i<p.w; i+=20) for(let j=10; j<p.h; j+=20) ctx.fillRect(dX+i+(j%2*10), p.y+j, 4, 4);
+            const wingGeo = new THREE.BoxGeometry(1.2, 0.05, 0.4);
+            const wingMat = new THREE.MeshLambertMaterial({color: 0x333333});
+            const wings = new THREE.Mesh(wingGeo, wingMat);
+            wings.position.y = 0.1;
+            bird.add(wings);
 
-            if(p.type !== 'goal_base') {
-                ctx.fillStyle = '#32CD32'; ctx.fillRect(dX, p.y, p.w, 8);
-                ctx.fillStyle = '#228B22';
-                for(let i=0; i<p.w; i+=5) {
-                    let h = 5 + Math.sin(i*0.1)*3;
-                    ctx.beginPath(); ctx.moveTo(dX+i, p.y+2); ctx.lineTo(dX+i+2, p.y-h); ctx.lineTo(dX+i+4, p.y+2); ctx.fill();
-                }
-                // Kukat ruohikossa
-                for(let i=0; i<p.w; i+=30) {
-                    if(Math.random() > 0.5) {
-                        let fX = dX+i+10, fY = p.y-5;
-                        // Vari
-                        ctx.strokeStyle = '#2d5016'; ctx.lineWidth = 1;
-                        ctx.beginPath(); ctx.moveTo(fX, fY); ctx.lineTo(fX, fY+8); ctx.stroke();
-                        // Terälehdet
-                        let colors = ['#ff69b4', '#ffff00', '#ff4444', '#ffffff'];
-                        ctx.fillStyle = colors[Math.floor(i/30) % colors.length];
-                        for(let a=0; a<Math.PI*2; a+=Math.PI/2) {
-                            ctx.beginPath(); ctx.arc(fX+Math.cos(a)*3, fY+Math.sin(a)*3, 2, 0, Math.PI*2); ctx.fill();
-                        }
-                        // Keski
-                        ctx.fillStyle = '#ffaa00';
-                        ctx.beginPath(); ctx.arc(fX, fY, 1.5, 0, Math.PI*2); ctx.fill();
+            bird.userData = { 
+                wings: wings, 
+                speed: 0.1 + Math.random() * 0.05,
+                phase: Math.random() * 10
+            };
+            return bird;
+        }
+
+        function spawnGameObjects() {
+            for(let i=0; i<40; i++) {
+                const g = new THREE.Group();
+                const m = new THREE.Mesh(new THREE.ConeGeometry(0.5,1,8), new THREE.MeshLambertMaterial({color:0xff0000}));
+                m.rotation.x = Math.PI; m.position.y=1;
+                const l = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3), new THREE.MeshLambertMaterial({color:0x00aa00}));
+                l.position.y=1.5; l.scale.y=0.3;
+                g.add(m); g.add(l);
+                
+                const a = Math.random()*Math.PI*2;
+                const r = 20 + Math.random()*200;
+                g.position.set(Math.cos(a)*r, 0, Math.sin(a)*r);
+                g.userData = { y:0, off:Math.random() };
+                
+                scene.add(g);
+                strawberries.push(g);
+            }
+
+            for(let i=0; i<10; i++) {
+                const bird = createBird();
+                const a = Math.random()*Math.PI*2;
+                const r = 50 + Math.random()*200;
+                bird.position.set(Math.cos(a)*r, 5 + Math.random()*5, Math.sin(a)*r);
+                scene.add(bird);
+                birds.push(bird);
+            }
+        }
+
+        // --- TARKKA RAYCASTING TÖRMÄYS ---
+        function checkCollisions() {
+            if(!car) return;
+            const carPos = car.position;
+
+            // 1. RAKENNUSTÖRMÄYS (Säteenseuranta / Raycasting)
+            // Ammutaan säteitä autosta eri suuntiin. Jos joku osuu lähelle, on törmäys.
+            // Näin laatikon kääntyminen ei aiheuta haamuseiniä.
+            
+            // Määritellään säteiden suunnat (Eteen, taakse, viistot)
+            const directions = [
+                new THREE.Vector3(0, 0, 1),   // Eteen
+                new THREE.Vector3(0, 0, -1),  // Taakse
+                new THREE.Vector3(1, 0, 1).normalize(),  // Oikea etuviisto
+                new THREE.Vector3(-1, 0, 1).normalize(), // Vasen etuviisto
+                new THREE.Vector3(1, 0, 0),   // Oikealle
+                new THREE.Vector3(-1, 0, 0)   // Vasemmalle
+            ];
+
+            // Optimointi: Tarkistetaan vain lähellä olevat talot (alle 30m)
+            const nearbyBuildings = buildingMeshes.filter(b => b.position.distanceToSquared(carPos) < 900); // 30*30 = 900
+
+            if (nearbyBuildings.length > 0) {
+                for(let dir of directions) {
+                    // Käännä suuntavektori auton suunnan mukaiseksi
+                    const rotatedDir = dir.clone().applyAxisAngle(new THREE.Vector3(0,1,0), car.rotation.y);
+                    
+                    // Aseta säde: Alkaa auton keskeltä (hieman maanpinnan yläpuolelta), osoittaa suuntaan
+                    raycaster.set(new THREE.Vector3(carPos.x, 1, carPos.z), rotatedDir);
+                    
+                    // Tarkista osumat
+                    const intersects = raycaster.intersectObjects(nearbyBuildings);
+                    
+                    // Jos osuu johonkin ja etäisyys on pieni (auto on n. 1.5m leveä, joten < 1.2 on osuma)
+                    if (intersects.length > 0 && intersects[0].distance < 1.3) {
+                        endGame("AJOIT SEINÄÄN!", "#d32f2f");
+                        return;
                     }
                 }
             }
-            
-            if(p.type === 'goal_base') {
-                ctx.fillStyle = '#fff'; ctx.fillRect(dX+p.w/2-5, p.y-200, 10, 200);
-                let flagGrad = ctx.createLinearGradient(dX+p.w/2+5, p.y-200, dX+p.w/2+60, p.y-160);
-                flagGrad.addColorStop(0, 'red'); flagGrad.addColorStop(1, '#ff6666');
-                ctx.fillStyle = flagGrad;
-                ctx.beginPath(); ctx.moveTo(dX+p.w/2+5, p.y-200); ctx.lineTo(dX+p.w/2+65, p.y-180); ctx.lineTo(dX+p.w/2+5, p.y-160); ctx.fill();
+
+            // 2. MANSIKAT
+            for(let i=strawberries.length-1; i>=0; i--) {
+                const s = strawberries[i];
+                if(carPos.distanceTo(s.position) < 3) {
+                    scene.remove(s);
+                    strawberries.splice(i, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    if(strawberries.length === 0) endGame("MANSIKKAMESTARI! VOITIT!", "green");
+                }
+            }
+
+            // 3. RÄKÄTTIRASTAAT
+            for(let bird of birds) {
+                const dir = new THREE.Vector3().subVectors(carPos, bird.position);
+                dir.y = 0; dir.normalize();
+                
+                bird.position.add(dir.multiplyScalar(bird.userData.speed));
+                bird.lookAt(carPos.x, bird.position.y, carPos.z);
+                bird.userData.wings.rotation.z = Math.sin(Date.now() * 0.02 + bird.userData.phase) * 0.5;
+
+                const flatDist = new THREE.Vector2(bird.position.x, bird.position.z).distanceTo(new THREE.Vector2(carPos.x, carPos.z));
+                if(flatDist < 25) {
+                     bird.position.y = THREE.MathUtils.lerp(bird.position.y, 1.5, 0.03);
+                } else {
+                     bird.position.y = THREE.MathUtils.lerp(bird.position.y, 8, 0.01);
+                }
+
+                if(bird.position.distanceTo(carPos) < 2.5) {
+                    endGame("RÄKÄTTIRASTAS NAPPASI!", "#555");
+                    return;
+                }
             }
         }
-    });
 
-    collectibles.forEach(c => c.draw(ctx, cameraX));
-    ammoBoxes.forEach(b => b.draw(ctx, cameraX));
-    enemies.forEach(e => e.draw(ctx, cameraX));
-    projectiles.forEach(p => p.draw(ctx, cameraX));
-    player.draw(ctx, cameraX);
-    particles.forEach(p => p.draw(ctx, cameraX));
+        function endGame(msg, color) {
+            gameActive = false;
+            document.getElementById('end-reason').innerText = msg;
+            document.getElementById('end-reason').style.color = color;
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('game-over').style.display = 'block';
+        }
 
-    requestAnimationFrame(loop);
-}
+        function animate() {
+            requestAnimationFrame(animate);
 
-function loop() { update(); draw(); }
+            if(gameActive && car) {
+                // Auto
+                if(keys.w) speed += 0.04;
+                if(keys.s) speed -= 0.04;
+                speed *= 0.96; 
+                
+                if(Math.abs(speed)>0.1) {
+                    const dir = speed>0?1:-1;
+                    if(keys.a) angle += 0.05 * dir;
+                    if(keys.d) angle -= 0.05 * dir;
+                }
+                
+                car.rotation.y = angle;
+                car.position.x += Math.sin(angle)*speed;
+                car.position.z += Math.cos(angle)*speed;
 
-document.getElementById('start-btn').addEventListener('click', () => {
-    document.getElementById('start-screen').style.display = 'none';
-    AudioEngine.startMusic(); initLevel(); gameState = 'PLAYING'; loop();
-});
-initLevel(); draw();
-</script>
+                const camOff = new THREE.Vector3(0, 15, -20).applyMatrix4(car.matrixWorld);
+                camera.position.lerp(camOff, 0.1);
+                camera.lookAt(car.position);
+
+                strawberries.forEach(s => {
+                    s.rotation.y += 0.02;
+                    s.position.y = 1 + Math.sin(Date.now()*0.003 + s.userData.off)*0.3;
+                });
+
+                checkCollisions();
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+    </script>
 </body>
 </html>
